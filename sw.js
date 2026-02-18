@@ -1,4 +1,4 @@
-const CACHE = 'ramadan-v3-20260217';
+const CACHE = 'ramadan-v4-20260218';
 const STATIC = ['./', './index.html', './manifest.json', './icon-192.png', './icon-512.png'];
 
 self.addEventListener('install', e => {
@@ -20,7 +20,6 @@ self.addEventListener('fetch', e => {
   if (url.includes('api.aladhan.com') ||
       url.includes('raw.githubusercontent.com') ||
       url.includes('nominatim.openstreetmap.org') ||
-      url.includes('ipapi.co') ||
       url.includes('fonts.googleapis.com')) return;
 
   e.respondWith(
@@ -54,20 +53,37 @@ const timers = {};
 function scheduleAll(prayers) {
   Object.keys(timers).forEach(k => { clearTimeout(timers[k]); delete timers[k]; });
   if (!prayers) return;
+
   const now = Date.now();
+  const prayerKeys = ['Fajr','Dhuhr','Asr','Maghrib','Isha'];
+
   Object.entries(prayers).forEach(([name, info]) => {
     const diff = info.time - now;
     if (diff > 0 && diff < 24 * 3600 * 1000) {
       timers[name] = setTimeout(() => {
+        // 1. System notification
         self.registration.showNotification(info.title, {
           body: info.body,
           icon: './icon-192.png',
           badge: './icon-192.png',
-          vibrate: [300, 100, 300],
+          vibrate: [400, 100, 400, 100, 400],
           tag: name,
           requireInteraction: true,
           dir: 'auto',
         });
+
+        // 2. Play azan only for actual prayer times (not suhoor/qiyam/iftar/dhikr)
+        if (prayerKeys.includes(name)) {
+          clients.matchAll({ type: 'window', includeUncontrolled: true }).then(allClients => {
+            allClients.forEach(client => {
+              client.postMessage({
+                type: 'PLAY_AZAN',
+                prayerName: info.title,
+                prayerTime: info.body
+              });
+            });
+          });
+        }
       }, diff);
     }
   });
