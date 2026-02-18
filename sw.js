@@ -55,7 +55,7 @@ function scheduleAll(prayers) {
   if (!prayers) return;
 
   const now = Date.now();
-  const prayerKeys = ['Fajr','Dhuhr','Asr','Maghrib','Isha'];
+  const prayerKeys = ['Fajr','Dhuhr','Asr','Maghrib','Isha','suhoor','qiyam'];
 
   Object.entries(prayers).forEach(([name, info]) => {
     const diff = info.time - now;
@@ -72,7 +72,7 @@ function scheduleAll(prayers) {
           dir: 'auto',
         });
 
-        // 2. Play azan only for actual prayer times (not suhoor/qiyam/iftar/dhikr)
+        // 2. Play sound for prayers + suhoor + qiyam (not iftar/dhikr)
         if (prayerKeys.includes(name)) {
           clients.matchAll({ type: 'window', includeUncontrolled: true }).then(allClients => {
             allClients.forEach(client => {
