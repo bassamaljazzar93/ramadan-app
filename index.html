@@ -597,8 +597,21 @@ body::before {
   padding: 6px;
   box-shadow: 0 4px 24px rgba(0,0,0,0.5);
   line-height: 0;
+  position: relative;
 }
 .qm-img { width: 100%; display: block; border-radius: 2px; }
+
+/* Tap zone hints - shown briefly when page opens */
+.tap-hint {
+  position: absolute; top: 0; bottom: 0; width: 33%;
+  display: flex; align-items: center; justify-content: center;
+  font-size: 28px; pointer-events: none;
+  opacity: 0; transition: opacity .3s;
+  border-radius: 4px;
+}
+.tap-hint.left  { left: 0;  background: linear-gradient(to right,  rgba(37,99,235,0.18), transparent); }
+.tap-hint.right { right: 0; background: linear-gradient(to left,   rgba(37,99,235,0.18), transparent); }
+.tap-hint.show  { opacity: 1; }
 .qm-footer { padding: 10px 16px; background: var(--surface); display: flex; gap: 8px; flex-shrink: 0; }
 .qm-btn {
   flex: 1; background: var(--primary); border: none; border-radius: 12px;
@@ -1737,7 +1750,10 @@ function checkPermStatuses() {
 
 async function startApp() {
   hideOnboarding();
-  // Request location
+  // Show loading screen now that user has interacted
+  document.getElementById('loadingScreen').classList.remove('gone');
+  document.getElementById('loadingScreen').style.display = '';
+  // Request location (will fetch prayer times inside)
   await tryAutoLocation(true);
   // Request notifications
   await askNotifPermission(true);
@@ -1747,7 +1763,13 @@ function skipOnboard() {
   hideOnboarding();
   S.initialized = true;
   savePersist();
-  if (!S.lat) openCitySelector();
+  if (S.lat) {
+    // Already have coords from background GPS → fetch now
+    fetchPrayerTimes();
+  } else {
+    hideLoading();
+    openCitySelector();
+  }
 }
 
 // =============================================================
@@ -2336,6 +2358,23 @@ function loadQPage(absPage) {
     img.alt = `Page ${pg}`;
     img.onload = () => {
       body.innerHTML = '';
+      // Tap hint overlays (shown briefly, only if not first page)
+      if (curPage > sesStart) {
+        const hintL = document.createElement('div');
+        hintL.className = 'tap-hint left';
+        hintL.textContent = S.lang === 'ar' ? '◀' : '◀';
+        wrap.appendChild(hintL);
+        setTimeout(() => hintL.classList.add('show'), 50);
+        setTimeout(() => hintL.classList.remove('show'), 1200);
+      }
+      if (curPage < sesEnd) {
+        const hintR = document.createElement('div');
+        hintR.className = 'tap-hint right';
+        hintR.textContent = S.lang === 'ar' ? '▶' : '▶';
+        wrap.appendChild(hintR);
+        setTimeout(() => hintR.classList.add('show'), 50);
+        setTimeout(() => hintR.classList.remove('show'), 1200);
+      }
       wrap.appendChild(img);
       body.appendChild(wrap);
       const info = document.createElement('div');
@@ -2363,9 +2402,68 @@ function loadQPage(absPage) {
   document.getElementById('qmNext').disabled = curPage >= sesEnd;
 }
 
-document.getElementById('qmPrev').onclick = () => { if(curPage>sesStart){curPage--;loadQPage(curPage);} };
-document.getElementById('qmNext').onclick = () => { if(curPage<sesEnd){curPage++;loadQPage(curPage);} };
+document.getElementById('qmPrev').onclick = () => { if(curPage>sesStart){ curPage--; loadQPage(curPage); } };
+document.getElementById('qmNext').onclick = () => { if(curPage<sesEnd){ curPage++; loadQPage(curPage); } };
 document.getElementById('qmClose').onclick = () => document.getElementById('qmodal').classList.remove('show');
+
+// ── Swipe + Tap-zone navigation ──────────────────────────────
+(function() {
+  const body = document.getElementById('qmBody');
+  let touchStartX = 0, touchStartY = 0, touchStartTime = 0;
+  const MIN_SWIPE = 50;   // px minimum horizontal distance
+  const MAX_VERT  = 80;   // px max vertical drift allowed
+  const MAX_TAP   = 220;  // ms max duration for a tap
+
+  function goNext() { if (curPage < sesEnd)  { curPage++; loadQPage(curPage); } }
+  function goPrev() { if (curPage > sesStart){ curPage--; loadQPage(curPage); } }
+
+  // ── Touch events (mobile) ──
+  body.addEventListener('touchstart', e => {
+    touchStartX    = e.touches[0].clientX;
+    touchStartY    = e.touches[0].clientY;
+    touchStartTime = Date.now();
+  }, { passive: true });
+
+  body.addEventListener('touchend', e => {
+    const dx       = e.changedTouches[0].clientX - touchStartX;
+    const dy       = e.changedTouches[0].clientY - touchStartY;
+    const dt       = Date.now() - touchStartTime;
+    const absDx    = Math.abs(dx);
+    const absDy    = Math.abs(dy);
+
+    // ── Tap detection (short + small movement) ──
+    if (dt < MAX_TAP && absDx < 20 && absDy < 20) {
+      const rect  = body.getBoundingClientRect();
+      const tapX  = e.changedTouches[0].clientX - rect.left;
+      const third = rect.width / 3;
+      // Left third → previous, Right third → next, Middle → nothing
+      if (tapX < third)        goPrev();
+      else if (tapX > third*2) goNext();
+      return;
+    }
+
+    // ── Swipe detection ──
+    if (absDx < MIN_SWIPE || absDy > MAX_VERT) return; // not a clean swipe
+    // Arabic RTL logic:
+    //   swipe RIGHT (dx > 0) → go to NEXT page (like turning page forward in Arabic book)
+    //   swipe LEFT  (dx < 0) → go to PREV page
+    if (dx > 0) goNext();
+    else        goPrev();
+  }, { passive: true });
+
+  // ── Mouse click zones (desktop/PWA) ──
+  body.addEventListener('click', e => {
+    // Ignore clicks on the image wrapper itself (let touch handle it)
+    // Only handle clicks directly on qmBody background
+    if (e.target === body || e.target.classList.contains('qm-img-wrap') || e.target.classList.contains('qm-img')) {
+      const rect  = body.getBoundingClientRect();
+      const clickX = e.clientX - rect.left;
+      const third  = rect.width / 3;
+      if (clickX < third)       goPrev();
+      else if (clickX > third*2) goNext();
+    }
+  });
+})();
 
 function markDone() {
   if (!curSession) return;
@@ -2560,45 +2658,49 @@ document.addEventListener('DOMContentLoaded', () => {
 
   // Show onboarding or load data
   if (!S.initialized) {
+    // iOS/Android: hide loading immediately, show onboarding right away
+    // Don't fetch ANYTHING until user presses "ابدأ الآن" or "تخطى"
+    hideLoading();
     showOnboarding();
-    // Still try to load location silently
-    setTimeout(() => {
-      if (!S.lat && navigator.geolocation) {
+    // Silently get GPS in background just to update the ✅ indicator
+    // but do NOT call fetchPrayerTimes or show loading screen
+    if (navigator.geolocation) {
+      setTimeout(() => {
         navigator.geolocation.getCurrentPosition(
           pos => {
-            S.lat = pos.coords.latitude; S.lng = pos.coords.longitude;
+            S.lat = pos.coords.latitude;
+            S.lng = pos.coords.longitude;
             document.getElementById('locStatus').textContent = '✅';
-            reverseGeocode().then(() => fetchPrayerTimes());
+            // Find nearest city method
+            const nearest = findNearestCity(S.lat, S.lng);
+            if (nearest) S.method = nearest.method;
+            // Reverse geocode quietly
+            reverseGeocode();
           },
-          () => { /* silent fail - user will choose from onboarding */ },
-          { timeout: 8000 }
+          () => { document.getElementById('locStatus').textContent = '❌'; },
+          { timeout: 8000, maximumAge: 300000 }
         );
-      }
-    }, 500);
+      }, 300);
+    }
   } else {
-    // Already initialized - load saved data first immediately
+    // Already initialized - load saved data immediately
     if (S.lat) {
-      fetchPrayerTimes(); // fetch with saved coords right away (fast)
+      fetchPrayerTimes();
     } else {
       hideLoading();
       openCitySelector();
     }
 
-    // Then silently try to refresh GPS in background
-    // If location changed significantly → re-fetch prayer times
+    // Silently refresh GPS in background - update if moved > ~1km
     if (navigator.geolocation) {
       navigator.geolocation.getCurrentPosition(
         pos => {
           const newLat = pos.coords.latitude;
           const newLng = pos.coords.longitude;
-          // Check if moved more than ~1km (0.009 degrees ≈ 1km)
           const latDiff = Math.abs(newLat - (S.lat || 0));
           const lngDiff = Math.abs(newLng - (S.lng || 0));
           if (latDiff > 0.009 || lngDiff > 0.009) {
-            // Location changed - update and re-fetch
-            S.lat = newLat;
-            S.lng = newLng;
-            // Auto-detect method from nearest city
+            S.lat = newLat; S.lng = newLng;
             const nearest = findNearestCity(newLat, newLng);
             if (nearest) S.method = nearest.method;
             reverseGeocode().then(() => {
@@ -2608,12 +2710,11 @@ document.addEventListener('DOMContentLoaded', () => {
             });
           }
         },
-        () => { /* silent fail - keep using saved location */ },
+        () => {},
         { timeout: 10000, maximumAge: 60000 }
       );
     }
 
-    // Check notif permission and request if needed
     if ('Notification' in window && Notification.permission === 'default') {
       setTimeout(() => askNotifPermission(true), 2000);
     }
