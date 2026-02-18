@@ -1,4 +1,4 @@
-const CACHE = 'ramadan-v4-20260218';
+const CACHE = 'ramadan-v5-20260218';
 const STATIC = ['./', './index.html', './manifest.json', './icon-192.png', './icon-512.png'];
 
 self.addEventListener('install', e => {
@@ -17,16 +17,26 @@ self.addEventListener('activate', e => {
 
 self.addEventListener('fetch', e => {
   const url = e.request.url;
+  // Skip caching for external APIs and dynamic content
   if (url.includes('api.aladhan.com') ||
       url.includes('raw.githubusercontent.com') ||
       url.includes('nominatim.openstreetmap.org') ||
-      url.includes('fonts.googleapis.com')) return;
+      url.includes('fonts.googleapis.com') ||
+      url.includes('chrome-extension://')) return;
+
+  // Only handle GET requests
+  if (e.request.method !== 'GET') return;
 
   e.respondWith(
-    fetch(e.request)
-      .then(r => {
-        caches.open(CACHE).then(c => c.put(e.request, r.clone()));
-        return r;
+    fetch(e.request.clone())   // ← clone the REQUEST before passing to fetch
+      .then(response => {
+        // Only cache valid responses
+        if (!response || response.status !== 200 || response.type === 'error') {
+          return response;
+        }
+        const responseClone = response.clone(); // ← clone RESPONSE before caching
+        caches.open(CACHE).then(c => c.put(e.request, responseClone));
+        return response;
       })
       .catch(() => caches.match(e.request))
   );
@@ -55,7 +65,7 @@ function scheduleAll(prayers) {
   if (!prayers) return;
 
   const now = Date.now();
-  const prayerKeys = ['Fajr','Dhuhr','Asr','Maghrib','Isha','suhoor','qiyam'];
+  const soundKeys = ['Fajr','Dhuhr','Asr','Maghrib','Isha','suhoor','qiyam'];
 
   Object.entries(prayers).forEach(([name, info]) => {
     const diff = info.time - now;
@@ -72,8 +82,8 @@ function scheduleAll(prayers) {
           dir: 'auto',
         });
 
-        // 2. Play sound for prayers + suhoor + qiyam (not iftar/dhikr)
-        if (prayerKeys.includes(name)) {
+        // 2. Send message to app window to play sound
+        if (soundKeys.includes(name)) {
           clients.matchAll({ type: 'window', includeUncontrolled: true }).then(allClients => {
             allClients.forEach(client => {
               client.postMessage({
