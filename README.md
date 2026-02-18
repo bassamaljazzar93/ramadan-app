@@ -4,7 +4,7 @@
 
 **تطبيق رمضان المتكامل — إمساكية · مواقيت الصلاة · أذان · ختم القرآن**
 
-[![Live Demo](https://img.shields.io/badge/🌐_Live_Demo-assamaljazzar93.github.io/ramadan--app-2563eb?style=for-the-badge)](https://bassamaljazzar93.github.io/ramadan-app)
+[![Live Demo](https://img.shields.io/badge/🌐_Live_Demo-bassamaljazzar93.github.io/ramadan--app-2563eb?style=for-the-badge)](https://bassamaljazzar93.github.io/ramadan-app)
 [![PWA Ready](https://img.shields.io/badge/PWA-Ready-10b981?style=for-the-badge&logo=googlechrome)](https://bassamaljazzar93.github.io/ramadan-app)
 [![Arabic RTL](https://img.shields.io/badge/Arabic-RTL_Support-f59e0b?style=for-the-badge)](https://bassamaljazzar93.github.io/ramadan-app)
 
