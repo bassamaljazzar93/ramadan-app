@@ -677,6 +677,54 @@ body::before {
 }
 @keyframes dots { 0%{content:''} 25%{content:'.'} 50%{content:'..'} 75%{content:'...'} 100%{content:''} }
 
+/* ============================
+   AZAN ALARM BANNER
+   ============================ */
+.azan-banner {
+  position: fixed; top: 0; left: 50%; transform: translateX(-50%);
+  width: 100%; max-width: 430px;
+  background: linear-gradient(135deg, #0f2460 0%, #1d4ed8 50%, #0f2460 100%);
+  background-size: 200% 100%;
+  animation: azanPulse 2s ease-in-out infinite;
+  z-index: 950;
+  padding: 14px 16px;
+  display: none; flex-direction: column; align-items: center; gap: 10px;
+  box-shadow: 0 4px 30px rgba(37,99,235,0.6);
+}
+.azan-banner.show { display: flex; }
+@keyframes azanPulse {
+  0%,100% { background-position: 0% 50%; box-shadow: 0 4px 30px rgba(37,99,235,0.6); }
+  50% { background-position: 100% 50%; box-shadow: 0 4px 50px rgba(37,99,235,0.9); }
+}
+.azan-top { display: flex; align-items: center; gap: 12px; width: 100%; }
+.azan-waves { display: flex; gap: 3px; align-items: flex-end; height: 28px; }
+.azan-wave {
+  width: 4px; background: rgba(255,255,255,0.9); border-radius: 2px;
+  animation: wave 0.8s ease-in-out infinite;
+}
+.azan-wave:nth-child(1) { height: 10px; animation-delay: 0s; }
+.azan-wave:nth-child(2) { height: 20px; animation-delay: 0.1s; }
+.azan-wave:nth-child(3) { height: 28px; animation-delay: 0.2s; }
+.azan-wave:nth-child(4) { height: 20px; animation-delay: 0.3s; }
+.azan-wave:nth-child(5) { height: 10px; animation-delay: 0.4s; }
+@keyframes wave {
+  0%,100% { transform: scaleY(0.5); opacity: 0.6; }
+  50% { transform: scaleY(1); opacity: 1; }
+}
+.azan-info { flex: 1; }
+.azan-title { font-size: 15px; font-weight: 900; }
+.azan-sub { font-size: 12px; color: rgba(255,255,255,0.75); margin-top: 2px; }
+.azan-stop {
+  background: white; color: #1d4ed8;
+  border: none; border-radius: 12px;
+  padding: 9px 20px; font-family: var(--font);
+  font-size: 14px; font-weight: 900;
+  cursor: pointer; white-space: nowrap;
+  box-shadow: 0 2px 12px rgba(0,0,0,0.3);
+  transition: transform .15s;
+}
+.azan-stop:active { transform: scale(0.95); }
+
 /* Install prompt (Android) */
 .install-bar {
   position: fixed; bottom: 80px; left: 50%; transform: translateX(-50%);
@@ -720,16 +768,58 @@ body::before {
 <!-- ==================== TOAST ==================== -->
 <div class="toast" id="toast"></div>
 
+<!-- ==================== AZAN BANNER ==================== -->
+<div class="azan-banner" id="azanBanner">
+  <div class="azan-top">
+    <div class="azan-waves">
+      <div class="azan-wave"></div>
+      <div class="azan-wave"></div>
+      <div class="azan-wave"></div>
+      <div class="azan-wave"></div>
+      <div class="azan-wave"></div>
+    </div>
+    <div class="azan-info">
+      <div class="azan-title" id="azanTitle">🕌 حان وقت الصلاة</div>
+      <div class="azan-sub" id="azanSub">الأذان يُشغَّل الآن</div>
+    </div>
+    <button class="azan-stop" onclick="stopAzan()" id="azanStopBtn">⏹ إيقاف</button>
+  </div>
+</div>
+
 <!-- ==================== ONBOARDING ==================== -->
 <div class="overlay" id="onboardOverlay">
   <div class="onboard-card">
+
+    <!-- 1️⃣ Install Instructions FIRST -->
+    <div class="install-section" id="installInstructions" style="padding:20px 20px 8px">
+      <div style="text-align:center;margin-bottom:12px">
+        <span style="font-size:32px">📲</span>
+        <div style="font-size:15px;font-weight:900;margin-top:4px" id="ob-install-heading">كيفية تثبيت التطبيق</div>
+        <div style="font-size:12px;color:var(--text-muted);margin-top:2px" id="ob-install-sub">ثبّت التطبيق للحصول على أذان وتنبيهات</div>
+      </div>
+      <div class="install-tabs">
+        <button class="install-tab active" onclick="switchInstallTab('android')" id="tab-android">
+          🤖 Android
+        </button>
+        <button class="install-tab" onclick="switchInstallTab('ios')" id="tab-ios">
+          🍎 iPhone / iPad
+        </button>
+      </div>
+      <div class="install-steps-list active" id="steps-android"></div>
+      <div class="install-steps-list" id="steps-ios"></div>
+    </div>
+
+    <!-- Divider -->
+    <div style="height:1px;background:var(--border);margin:4px 0"></div>
+
+    <!-- 2️⃣ App Hero -->
     <div class="onboard-hero">
       <span class="onboard-moon">🌙</span>
       <h1 id="ob-title">رمضان كريم</h1>
       <p id="ob-sub">إمساكية · مواقيت الصلاة · ختم القرآن</p>
     </div>
 
-    <!-- Permissions -->
+    <!-- 3️⃣ Permissions -->
     <div class="onboard-steps">
       <div class="perm-step">
         <div class="perm-step-icon loc">📍</div>
@@ -749,25 +839,7 @@ body::before {
       </div>
     </div>
 
-    <!-- Install Instructions -->
-    <div class="install-section" id="installInstructions">
-      <div class="install-tabs">
-        <button class="install-tab active" onclick="switchInstallTab('android')" id="tab-android">
-          🤖 Android
-        </button>
-        <button class="install-tab" onclick="switchInstallTab('ios')" id="tab-ios">
-          🍎 iPhone / iPad
-        </button>
-      </div>
-
-      <div class="install-steps-list active" id="steps-android">
-        <!-- filled by JS -->
-      </div>
-      <div class="install-steps-list" id="steps-ios">
-        <!-- filled by JS -->
-      </div>
-    </div>
-
+    <!-- 4️⃣ Actions -->
     <div class="onboard-actions">
       <button class="btn-primary" id="obStartBtn" onclick="startApp()">
         <span id="ob-start-txt">🚀 ابدأ الآن</span>
@@ -1692,6 +1764,12 @@ async function tryAutoLocation(silent = false) {
       pos => {
         S.lat = pos.coords.latitude;
         S.lng = pos.coords.longitude;
+        // Auto-detect calculation method from nearest city
+        const nearest = findNearestCity(S.lat, S.lng);
+        if (nearest) {
+          S.method = nearest.method;
+          document.getElementById('methodSelect').value = nearest.method;
+        }
         document.getElementById('locStatus').textContent = '✅';
         reverseGeocode().then(() => {
           fetchPrayerTimes();
@@ -2358,6 +2436,92 @@ if ('serviceWorker' in navigator) {
 }
 
 // =============================================================
+// FIND NEAREST CITY (for auto method detection)
+// =============================================================
+function findNearestCity(lat, lng) {
+  let nearest = null, minDist = Infinity;
+  CITIES.forEach(c => {
+    const d = Math.sqrt(Math.pow(c.lat - lat, 2) + Math.pow(c.lng - lng, 2));
+    if (d < minDist) { minDist = d; nearest = c; }
+  });
+  return nearest; // returns city obj or null
+}
+
+// =============================================================
+// AZAN AUDIO SYSTEM
+// =============================================================
+const AZAN_URL = 'https://raw.githubusercontent.com/bassamaljazzar93/ramadan-app/main/azan.mp3';
+let azanAudio = null;
+let azanTimer = null;
+
+function playAzan(prayerName, prayerTime) {
+  // Stop any existing
+  stopAzan(false);
+
+  azanAudio = new Audio(AZAN_URL);
+  azanAudio.volume = 1.0;
+  azanAudio.loop = false;
+  azanAudio.play().catch(err => {
+    console.warn('Azan play failed (user gesture required):', err);
+    // Show banner anyway - user can interact
+  });
+
+  azanAudio.onended = () => hideAzanBanner();
+  azanAudio.onerror = () => hideAzanBanner();
+
+  // Update banner text
+  const titleEl = document.getElementById('azanTitle');
+  const subEl   = document.getElementById('azanSub');
+  const stopBtn = document.getElementById('azanStopBtn');
+
+  if (titleEl) titleEl.textContent = `🕌 ${prayerName || (S.lang==='ar'?'حان وقت الصلاة':'Prayer Time')}`;
+  if (subEl)   subEl.textContent   = prayerTime ? `${S.lang==='ar'?'الأذان':'Azan'} - ${prayerTime}` : (S.lang==='ar'?'الأذان يُشغَّل الآن':'Azan is playing');
+  if (stopBtn) stopBtn.textContent = S.lang==='ar' ? '⏹ إيقاف' : '⏹ Stop';
+
+  // Show banner
+  showAzanBanner();
+
+  // Auto-hide after 5 minutes
+  azanTimer = setTimeout(() => stopAzan(), 5 * 60 * 1000);
+}
+
+function stopAzan(hideBanner = true) {
+  if (azanAudio) {
+    azanAudio.pause();
+    azanAudio.currentTime = 0;
+    azanAudio = null;
+  }
+  if (azanTimer) { clearTimeout(azanTimer); azanTimer = null; }
+  if (hideBanner) hideAzanBanner();
+}
+
+function showAzanBanner() {
+  const banner = document.getElementById('azanBanner');
+  if (banner) {
+    banner.classList.add('show');
+    // Push app content down
+    document.getElementById('app').style.paddingTop = '88px';
+  }
+}
+
+function hideAzanBanner() {
+  const banner = document.getElementById('azanBanner');
+  if (banner) {
+    banner.classList.remove('show');
+    document.getElementById('app').style.paddingTop = '0';
+  }
+}
+
+// Listen for SW messages to play azan
+if ('serviceWorker' in navigator) {
+  navigator.serviceWorker.addEventListener('message', e => {
+    if (e.data?.type === 'PLAY_AZAN') {
+      playAzan(e.data.prayerName, e.data.prayerTime);
+    }
+  });
+}
+
+// =============================================================
 // INIT
 // =============================================================
 document.addEventListener('DOMContentLoaded', () => {
@@ -2412,13 +2576,43 @@ document.addEventListener('DOMContentLoaded', () => {
       }
     }, 500);
   } else {
-    // Already initialized
+    // Already initialized - load saved data first immediately
     if (S.lat) {
-      fetchPrayerTimes();
+      fetchPrayerTimes(); // fetch with saved coords right away (fast)
     } else {
       hideLoading();
       openCitySelector();
     }
+
+    // Then silently try to refresh GPS in background
+    // If location changed significantly → re-fetch prayer times
+    if (navigator.geolocation) {
+      navigator.geolocation.getCurrentPosition(
+        pos => {
+          const newLat = pos.coords.latitude;
+          const newLng = pos.coords.longitude;
+          // Check if moved more than ~1km (0.009 degrees ≈ 1km)
+          const latDiff = Math.abs(newLat - (S.lat || 0));
+          const lngDiff = Math.abs(newLng - (S.lng || 0));
+          if (latDiff > 0.009 || lngDiff > 0.009) {
+            // Location changed - update and re-fetch
+            S.lat = newLat;
+            S.lng = newLng;
+            // Auto-detect method from nearest city
+            const nearest = findNearestCity(newLat, newLng);
+            if (nearest) S.method = nearest.method;
+            reverseGeocode().then(() => {
+              savePersist();
+              fetchPrayerTimes();
+              showToast('📍 ' + (S.lang==='ar' ? 'تم تحديث الموقع والأوقات' : 'Location & times updated'));
+            });
+          }
+        },
+        () => { /* silent fail - keep using saved location */ },
+        { timeout: 10000, maximumAge: 60000 }
+      );
+    }
+
     // Check notif permission and request if needed
     if ('Notification' in window && Notification.permission === 'default') {
       setTimeout(() => askNotifPermission(true), 2000);
